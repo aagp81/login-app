@@ -3,51 +3,381 @@
 <head>
   <meta charset="UTF-8">
   <title>Login Avenzo</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-</head>
-<body>
-  <h2>Iniciar sesión</h2>
-  <form id="login-form">
-    <label for="username">Usuario:</label><br>
-    <input type="text" id="username" required><br><br>
-    
-    <label for="password">Contraseña:</label><br>
-    <input type="password" id="password" required><br><br>
-    
-    <button type="submit">Ingresar</button>
-  </form>
+  <style>
+    @media (prefers-color-scheme: dark) {
+      body { background: #1e1e1e; color: #f0f0f0; }
+      .card { background: #2c2c2c; color: #f0f0f0; }
+    }
 
-  <p id="response"></p>
+    @media screen and (max-width: 600px) {
+      .dashboard { flex-direction: column; align-items: center; }
+      .card { width: 90%; }
+    }
 
-  <script>
-    document.getElementById("login-form").addEventListener("submit", async function(event) {
-      event.preventDefault();
+    body { font-family: sans-serif; text-align: center; background: #f5f5f5; padding: 20px; }
+    .hidden { display: none; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin: 10px auto; width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .card h3 { margin: 10px 0 5px; }
+    .card span { font-size: 1.2em; font-weight: bold; }
+    .dashboard { display: flex; flex-wrap: wrap; justify-content: center; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js">
+    let lastUsername, lastPassword;
 
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+    async function refreshData() {
+      console.log('Actualizando datos...');
+      const now = new Date();
+      document.getElementById("last-update").innerText = "Última actualización: " + now.toLocaleString();
+      if (!lastUsername || !lastPassword) return;
 
-      // Codificar con MD5
-      const md5Password = CryptoJS.MD5(password).toString();
-
-      // Enviar a la API
       try {
-        const response = await fetch("https://proxy-backend-elua.onrender.com/auth/login", {
+        const response = await fetch("http://47.99.135.189:8080/wx/auth/login", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            username: username,
-            password: md5Password
-          })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: lastUsername, password: lastPassword })
         });
 
         const result = await response.json();
-        document.getElementById("response").innerText = JSON.stringify(result, null, 2);
+
+        if (result?.data?.bindDeviceList?.[0]?.deviceData) {
+          const devData = result.data.bindDeviceList[0].deviceData;
+          const parsed = parseDeviceData(devData);
+
+          document.getElementById("ac_voltage").innerText = parsed.ac_input_voltage;
+          document.getElementById("ac_freq").innerText = parsed.ac_input_frequency;
+          document.getElementById("bat_voltage").innerText = parsed.battery_voltage;
+          document.getElementById("bat_percent").innerText = parsed.battery_capacity;
+          document.getElementById("out_voltage").innerText = parsed.output_voltage;
+          document.getElementById("out_freq").innerText = parsed.output_frequency;
+          document.getElementById("load_percent").innerText = parsed.output_load_percent;
+          // Notificación visual por batería baja
+          if (parsed.battery_capacity < 20) {
+            document.getElementById("bat_percent").style.color = "red";
+            document.getElementById("bat_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("bat_percent").style.color = "";
+            document.getElementById("bat_percent").style.fontWeight = "";
+          }
+
+          // Notificación visual por carga alta
+          if (parsed.output_load_percent > 80) {
+            document.getElementById("load_percent").style.color = "orange";
+            document.getElementById("load_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("load_percent").style.color = "";
+            document.getElementById("load_percent").style.fontWeight = "";
+          }
+
+        }
       } catch (error) {
-        document.getElementById("response").innerText = "Error al conectar con la API.";
+        console.log("Error actualizando datos:", error);
+      }
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async function(event) {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const md5Password = CryptoJS.MD5(password).toString();
+
+      lastUsername = username;
+      lastPassword = md5Password;
+
+      try {
+        const response = await fetch("http://47.99.135.189:8080/wx/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password: md5Password })
+        });
+
+        const result = await response.json();
+
+        if (result?.data?.bindDeviceList?.[0]?.deviceData) {
+          const devData = result.data.bindDeviceList[0].deviceData;
+          const parsed = parseDeviceData(devData);
+
+          document.getElementById("ac_voltage").innerText = parsed.ac_input_voltage;
+          document.getElementById("ac_freq").innerText = parsed.ac_input_frequency;
+          document.getElementById("bat_voltage").innerText = parsed.battery_voltage;
+          document.getElementById("bat_percent").innerText = parsed.battery_capacity;
+          document.getElementById("out_voltage").innerText = parsed.output_voltage;
+          document.getElementById("out_freq").innerText = parsed.output_frequency;
+          document.getElementById("load_percent").innerText = parsed.output_load_percent;
+          // Notificación visual por batería baja
+          if (parsed.battery_capacity < 20) {
+            document.getElementById("bat_percent").style.color = "red";
+            document.getElementById("bat_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("bat_percent").style.color = "";
+            document.getElementById("bat_percent").style.fontWeight = "";
+          }
+
+          // Notificación visual por carga alta
+          if (parsed.output_load_percent > 80) {
+            document.getElementById("load_percent").style.color = "orange";
+            document.getElementById("load_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("load_percent").style.color = "";
+            document.getElementById("load_percent").style.fontWeight = "";
+          }
+
+
+          
+          const device = result.data.bindDeviceList[0];
+          document.getElementById("nickName").innerText = device.nickName;
+          document.getElementById("deviceId").innerText = device.deviceId;
+          document.getElementById("userId").innerText = device.userId;
+          document.getElementById("ipAddr").innerText = device.ipAddr;
+          document.getElementById("status").innerText = device.status;
+
+          document.getElementById("login-view").classList.add("hidden");
+          document.getElementById("dashboard-view").classList.remove("hidden");
+
+          setInterval(refreshData, 30000); // cada 30 segundos
+        } else {
+          document.getElementById("response").innerText = "No se pudo obtener el deviceData.";
+        }
+      } catch (error) {
+        document.getElementById("response").innerText = "Error de conexión con la API.";
       }
     });
   </script>
+
+</head>
+<body>
+  <div id="login-view">
+    <h2>Iniciar sesión</h2>
+    <form id="login-form">
+      <input type="text" id="username" placeholder="Usuario" required><br><br>
+      <input type="password" id="password" placeholder="Contraseña" required><br><br>
+      <button type="submit">Ingresar</button>
+    </form>
+    <p id="response" style="color:red;"></p>
+  </div>
+
+  
+  <div id="dashboard-view" class="hidden">
+    <div class="card" style="background:#def;">
+      <h3>Información del Dispositivo</h3>
+      <p><strong>Nickname:</strong> <span id="nickName"></span></p>
+      <p><strong>Device ID:</strong> <span id="deviceId"></span></p>
+      <p><strong>User ID:</strong> <span id="userId"></span></p>
+      <p><strong>IP:</strong> <span id="ipAddr"></span></p>
+      <p><strong>Status:</strong> <span id="status"></span></p>
+    </div>
+
+    <h2>Panel Solar Avenzo</h2>
+    <p id="last-update" style="color: gray; font-size: 0.9em;"></p>
+    <div class="dashboard">
+      <div class="card"><h3>🔌 AC Input</h3><span id="ac_voltage"></span> V<br><span id="ac_freq"></span> Hz</div>
+      <div class="card"><h3>🔋 Battery</h3><span id="bat_voltage"></span> V<br><span id="bat_percent"></span> %</div>
+      <div class="card"><h3>⚡ Output</h3><span id="out_voltage"></span> V<br><span id="out_freq"></span> Hz</div>
+      <div class="card"><h3>📊 Load</h3><span id="load_percent"></span> %</div>
+      <div class="card"><h3>Modo</h3><span id="working_mode">Invert mode</span></div>
+    </div>
+  </div>
+
+  <script>
+    function parseDeviceData(deviceDataStr) {
+      const parts = deviceDataStr.split("-");
+      const bytes = parts.map(p => parseInt(p, 16));
+      const getWord = i => bytes[i] + (bytes[i+1] << 8);
+
+      return {
+        ac_input_voltage:     (getWord(5)  / 10).toFixed(1),
+        ac_input_frequency:   (getWord(7)  / 10).toFixed(1),
+        battery_voltage:      (getWord(13) / 10).toFixed(1),
+        battery_capacity:     bytes[15],
+        output_voltage:       (getWord(21) / 10).toFixed(1),
+        output_frequency:     (getWord(23) / 10).toFixed(1),
+        output_load_percent:  bytes[61],
+        working_mode:         "Invert mode"
+      };
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async function(event) {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const md5Password = CryptoJS.MD5(password).toString();
+
+      try {
+        const response = await fetch("http://47.99.135.189:8080/wx/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password: md5Password })
+        });
+
+        const result = await response.json();
+
+        if (result?.data?.bindDeviceList?.[0]?.deviceData) {
+          const devData = result.data.bindDeviceList[0].deviceData;
+          const parsed = parseDeviceData(devData);
+
+          document.getElementById("ac_voltage").innerText = parsed.ac_input_voltage;
+          document.getElementById("ac_freq").innerText = parsed.ac_input_frequency;
+          document.getElementById("bat_voltage").innerText = parsed.battery_voltage;
+          document.getElementById("bat_percent").innerText = parsed.battery_capacity;
+          document.getElementById("out_voltage").innerText = parsed.output_voltage;
+          document.getElementById("out_freq").innerText = parsed.output_frequency;
+          document.getElementById("load_percent").innerText = parsed.output_load_percent;
+          // Notificación visual por batería baja
+          if (parsed.battery_capacity < 20) {
+            document.getElementById("bat_percent").style.color = "red";
+            document.getElementById("bat_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("bat_percent").style.color = "";
+            document.getElementById("bat_percent").style.fontWeight = "";
+          }
+
+          // Notificación visual por carga alta
+          if (parsed.output_load_percent > 80) {
+            document.getElementById("load_percent").style.color = "orange";
+            document.getElementById("load_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("load_percent").style.color = "";
+            document.getElementById("load_percent").style.fontWeight = "";
+          }
+
+
+          
+          const device = result.data.bindDeviceList[0];
+          document.getElementById("nickName").innerText = device.nickName;
+          document.getElementById("deviceId").innerText = device.deviceId;
+          document.getElementById("userId").innerText = device.userId;
+          document.getElementById("ipAddr").innerText = device.ipAddr;
+          document.getElementById("status").innerText = device.status;
+
+          document.getElementById("login-view").classList.add("hidden");
+          document.getElementById("dashboard-view").classList.remove("hidden");
+        } else {
+          document.getElementById("response").innerText = "No se pudo obtener el deviceData.";
+        }
+      } catch (error) {
+        document.getElementById("response").innerText = "Error de conexión con la API.";
+      }
+    });
+  
+    let lastUsername, lastPassword;
+
+    async function refreshData() {
+      console.log('Actualizando datos...');
+      const now = new Date();
+      document.getElementById("last-update").innerText = "Última actualización: " + now.toLocaleString();
+      if (!lastUsername || !lastPassword) return;
+
+      try {
+        const response = await fetch("http://47.99.135.189:8080/wx/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: lastUsername, password: lastPassword })
+        });
+
+        const result = await response.json();
+
+        if (result?.data?.bindDeviceList?.[0]?.deviceData) {
+          const devData = result.data.bindDeviceList[0].deviceData;
+          const parsed = parseDeviceData(devData);
+
+          document.getElementById("ac_voltage").innerText = parsed.ac_input_voltage;
+          document.getElementById("ac_freq").innerText = parsed.ac_input_frequency;
+          document.getElementById("bat_voltage").innerText = parsed.battery_voltage;
+          document.getElementById("bat_percent").innerText = parsed.battery_capacity;
+          document.getElementById("out_voltage").innerText = parsed.output_voltage;
+          document.getElementById("out_freq").innerText = parsed.output_frequency;
+          document.getElementById("load_percent").innerText = parsed.output_load_percent;
+          // Notificación visual por batería baja
+          if (parsed.battery_capacity < 20) {
+            document.getElementById("bat_percent").style.color = "red";
+            document.getElementById("bat_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("bat_percent").style.color = "";
+            document.getElementById("bat_percent").style.fontWeight = "";
+          }
+
+          // Notificación visual por carga alta
+          if (parsed.output_load_percent > 80) {
+            document.getElementById("load_percent").style.color = "orange";
+            document.getElementById("load_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("load_percent").style.color = "";
+            document.getElementById("load_percent").style.fontWeight = "";
+          }
+
+        }
+      } catch (error) {
+        console.log("Error actualizando datos:", error);
+      }
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async function(event) {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const md5Password = CryptoJS.MD5(password).toString();
+
+      lastUsername = username;
+      lastPassword = md5Password;
+
+      try {
+        const response = await fetch("http://47.99.135.189:8080/wx/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password: md5Password })
+        });
+
+        const result = await response.json();
+
+        if (result?.data?.bindDeviceList?.[0]?.deviceData) {
+          const devData = result.data.bindDeviceList[0].deviceData;
+          const parsed = parseDeviceData(devData);
+
+          document.getElementById("ac_voltage").innerText = parsed.ac_input_voltage;
+          document.getElementById("ac_freq").innerText = parsed.ac_input_frequency;
+          document.getElementById("bat_voltage").innerText = parsed.battery_voltage;
+          document.getElementById("bat_percent").innerText = parsed.battery_capacity;
+          document.getElementById("out_voltage").innerText = parsed.output_voltage;
+          document.getElementById("out_freq").innerText = parsed.output_frequency;
+          document.getElementById("load_percent").innerText = parsed.output_load_percent;
+          // Notificación visual por batería baja
+          if (parsed.battery_capacity < 20) {
+            document.getElementById("bat_percent").style.color = "red";
+            document.getElementById("bat_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("bat_percent").style.color = "";
+            document.getElementById("bat_percent").style.fontWeight = "";
+          }
+
+          // Notificación visual por carga alta
+          if (parsed.output_load_percent > 80) {
+            document.getElementById("load_percent").style.color = "orange";
+            document.getElementById("load_percent").style.fontWeight = "bold";
+          } else {
+            document.getElementById("load_percent").style.color = "";
+            document.getElementById("load_percent").style.fontWeight = "";
+          }
+
+
+          
+          const device = result.data.bindDeviceList[0];
+          document.getElementById("nickName").innerText = device.nickName;
+          document.getElementById("deviceId").innerText = device.deviceId;
+          document.getElementById("userId").innerText = device.userId;
+          document.getElementById("ipAddr").innerText = device.ipAddr;
+          document.getElementById("status").innerText = device.status;
+
+          document.getElementById("login-view").classList.add("hidden");
+          document.getElementById("dashboard-view").classList.remove("hidden");
+
+          setInterval(refreshData, 30000); // cada 30 segundos
+        } else {
+          document.getElementById("response").innerText = "No se pudo obtener el deviceData.";
+        }
+      } catch (error) {
+        document.getElementById("response").innerText = "Error de conexión con la API.";
+      }
+    });
+  </script>
+
 </body>
 </html>
