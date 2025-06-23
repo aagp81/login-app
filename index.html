@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Avenzo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+  <h2>Iniciar sesión</h2>
+  <form id="login-form">
+    <label for="username">Usuario:</label><br>
+    <input type="text" id="username" required><br><br>
+    
+    <label for="password">Contraseña:</label><br>
+    <input type="password" id="password" required><br><br>
+    
+    <button type="submit">Ingresar</button>
+  </form>
+
+  <p id="response"></p>
+
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      // Codificar con MD5
+      const md5Password = CryptoJS.MD5(password).toString();
+
+      // Enviar a la API
+      try {
+        const response = await fetch("http://47.99.135.189:8080/wx/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            username: username,
+            password: md5Password
+          })
+        });
+
+        const result = await response.json();
+        document.getElementById("response").innerText = JSON.stringify(result, null, 2);
+      } catch (error) {
+        document.getElementById("response").innerText = "Error al conectar con la API.";
+      }
+    });
+  </script>
+</body>
+</html>
